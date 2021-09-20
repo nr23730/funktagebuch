@@ -4,6 +4,7 @@ import numpy as np
 from sys import byteorder
 from array import array
 import time
+import speech_recognition as sr
 
 def is_silent(snd_data):
     "Returns 'True' if below the 'silent' threshold"
@@ -14,7 +15,8 @@ def is_silent(snd_data):
 iFile=0
 def write_auto():
     global iFile
-    waveFile = wave.open("file"+str(iFile)+".wav", 'wb')
+    filename = "file"+str(iFile)+".wav"
+    waveFile = wave.open(filename, 'wb')
     iFile+=1
     waveFile.setnchannels(CHANNELS)
     waveFile.setsampwidth(audio.get_sample_size(FORMAT))
@@ -22,6 +24,17 @@ def write_auto():
     waveFile.writeframes(b''.join(frames))
     waveFile.close()
     frames.clear()
+
+    r = sr.Recognizer()
+
+    audiofile = sr.AudioFile(filename)
+    with audiofile as source:
+        myAudio = r.record(source)
+    try:
+        s = r.recognize_google(myAudio, language="de-DE")
+        print("Text: " + s)
+    except Exception as e:
+        print("Exception: " + str(e))
 
 FORMAT = pyaudio.paInt16
 CHANNELS = 1
@@ -57,8 +70,6 @@ while 1:
 
     if(recordStarted):
         frames.append(data)
-
-        print(time.time()-lastNoise)
         if(time.time()-lastNoise>1):
             print("Stop recording")
             recordStarted=False
