@@ -4,20 +4,18 @@ import numpy as np
 from sys import byteorder
 from array import array
 import time
-import speech_recognition as sr
+import datetime
+#import speech_recognition as sr
 
 def is_silent(snd_data):
     "Returns 'True' if below the 'silent' threshold"
     signallevel = np.average(np.absolute(snd_data))
     #print(signallevel)
-    return signallevel < 1000
+    return signallevel < 50
 
-iFile=0
 def write_auto():
-    global iFile
-    filename = "file"+str(iFile)+".wav"
+    filename = "file"+'{0:%Y-%m-%d_%H-%M-%S}'.format(datetime.datetime.now()) + "_in.wav"
     waveFile = wave.open(filename, 'wb')
-    iFile+=1
     waveFile.setnchannels(CHANNELS)
     waveFile.setsampwidth(audio.get_sample_size(FORMAT))
     waveFile.setframerate(RATE)
@@ -25,16 +23,16 @@ def write_auto():
     waveFile.close()
     frames.clear()
 
-    r = sr.Recognizer()
-
-    audiofile = sr.AudioFile(filename)
-    with audiofile as source:
-        myAudio = r.record(source)
-    try:
-        s = r.recognize_google(myAudio, language="de-DE")
-        print("Text: " + s)
-    except Exception as e:
-        print("Exception: " + str(e))
+    # r = sr.Recognizer()
+    #
+    # audiofile = sr.AudioFile(filename)
+    # with audiofile as source:
+    #     myAudio = r.record(source)
+    # try:
+    #     s = r.recognize_sphinx(myAudio, language="de-DE")
+    #     print("Text: " + s)
+    # except Exception as e:
+    #     print("Exception: " + str(e))
 
 FORMAT = pyaudio.paInt16
 CHANNELS = 1
@@ -47,7 +45,7 @@ audio = pyaudio.PyAudio()
 # start Recording
 stream = audio.open(format=FORMAT, channels=CHANNELS,
                     rate=RATE, input=True,
-                    frames_per_buffer=CHUNK)
+                    frames_per_buffer=CHUNK, input_device_index=0)
 print("recording...")
 frames = []
 
@@ -69,8 +67,8 @@ while 1:
         recordStarted=True
 
     if(recordStarted):
-        frames.append(data)
-        if(time.time()-lastNoise>1):
+        frames.append(15*np.array(snd_data))
+        if(time.time()-lastNoise>3):
             print("Stop recording")
             recordStarted=False
             write_auto()
