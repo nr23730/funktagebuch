@@ -1,17 +1,32 @@
 import pyaudio
 import wave
 import numpy as np
+import sys
 from sys import byteorder
 from array import array
 import time
 import datetime
 #import speech_recognition as sr
 
-def is_silent(snd_data):
+def is_silent(snd_data, noiseGateThreshold, isRecording):
     "Returns 'True' if below the 'silent' threshold"
     signallevel = np.average(np.absolute(snd_data))
-    #print(signallevel)
-    return signallevel < 50
+
+    isSilent = signallevel < noiseGateThreshold
+
+    if isSilent:
+        postfix="            "
+    else:
+        postfix=" Gate Open  "
+
+    if isRecording :
+        prefix="Recording  "
+    else:
+        prefix="           "
+
+    sys.stdout.write("\r"+prefix+"SignalLevel: " + format(int(signallevel), '4d')+postfix)
+    sys.stdout.flush()
+    return isSilent
 
 def write_auto():
     filename = "file"+'{0:%Y-%m-%d_%H-%M-%S}'.format(datetime.datetime.now()) + "_in.wav"
@@ -34,6 +49,29 @@ def write_auto():
     # except Exception as e:
     #     print("Exception: " + str(e))
 
+def makeNoiseCal(audioStream):
+    samples = []
+
+    calibrationSamples=15
+    for i in range(calibrationSamples):
+        sys.stdout.write("\rCalibrating: "+str(int(100*i/calibrationSamples))+"%")
+        sys.stdout.flush()
+        data=audioStream.read(CHUNK, exception_on_overflow = False)
+        snd_data = array('h', data)
+        if byteorder == 'big':
+            snd_data.byteswap()
+        samples.append(np.average(np.absolute(snd_data)))
+
+
+    print("Samples: "+str(samples))
+    print("Mean: "+str(np.average(samples)))
+    print("Std: "+str(np.std(samples)))
+
+    sigma=6
+    threshold=np.average(samples)+sigma*np.std(samples)
+    print("Threshold: "+str(threshold))
+    return threshold
+
 FORMAT = pyaudio.paInt16
 CHANNELS = 1
 RATE = 44100
@@ -51,25 +89,27 @@ frames = []
 
 recordStarted=False
 lastNoise=time.time()
-#for i in range(0, int(RATE / CHUNK * RECORD_SECONDS)):
+
+gateThreshold = makeNoiseCal(stream)
+
 while 1:
-    data=stream.read(CHUNK)
+    data=stream.read(CHUNK, exception_on_overflow = False)
     snd_data = array('h', data)
     if byteorder == 'big':
         snd_data.byteswap()
 
-    silent = is_silent(snd_data)
+    silent = is_silent(snd_data,gateThreshold, recordStarted)
 
     if(silent==False):
         lastNoise = time.time()
         if(recordStarted==False):
-            print("Start recording")
+            print("\nStart recording")
         recordStarted=True
 
     if(recordStarted):
-        frames.append(15*np.array(snd_data))
+        frames.append(3*np.array(snd_data))
         if(time.time()-lastNoise>3):
-            print("Stop recording")
+            print("\nStop recording")
             recordStarted=False
             write_auto()
 
