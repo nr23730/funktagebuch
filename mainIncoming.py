@@ -28,8 +28,8 @@ def is_silent(snd_data, noiseGateThreshold, isRecording):
     sys.stdout.flush()
     return isSilent
 
-def write_auto():
-    filename = "file"+'{0:%Y-%m-%d_%H-%M-%S}'.format(datetime.datetime.now()) + "_in.wav"
+def write_auto(savePostfix):
+    filename = "file"+'{0:%Y-%m-%d_%H-%M-%S}'.format(datetime.datetime.now()) + savePostfix + ".wav"
     waveFile = wave.open(filename, 'wb')
     waveFile.setnchannels(CHANNELS)
     waveFile.setsampwidth(audio.get_sample_size(FORMAT))
@@ -72,6 +72,19 @@ def makeNoiseCal(audioStream):
     print("Threshold: "+str(threshold))
     return threshold
 
+if(len(sys.argv)==0):
+    print("Usage: main.py [AudioDeviceIndex] [filePostfix]")
+
+if len(sys.argv)>1:
+    deviceIndex=int(sys.argv[1])
+else:
+    deviceIndex=0
+
+if(len(sys.argv)>2):
+    savePostfix=sys.argv[2]
+else:
+    savePostfix=""
+
 FORMAT = pyaudio.paInt16
 CHANNELS = 1
 RATE = 44100
@@ -83,7 +96,7 @@ audio = pyaudio.PyAudio()
 # start Recording
 stream = audio.open(format=FORMAT, channels=CHANNELS,
                     rate=RATE, input=True,
-                    frames_per_buffer=CHUNK, input_device_index=0)
+                    frames_per_buffer=CHUNK, input_device_index=deviceIndex)
 print("recording...")
 frames = []
 
@@ -111,7 +124,7 @@ while 1:
         if(time.time()-lastNoise>3):
             print("\nStop recording")
             recordStarted=False
-            write_auto()
+            write_auto(savePostfix)
 
 
 print("finished recording")
