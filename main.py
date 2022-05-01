@@ -4,7 +4,7 @@ import numpy as np
 import sys
 from sys import byteorder
 from array import array
-from pydub import AudioSegment
+from pydub import AudioSegment, effects
 import time
 import os
 import datetime
@@ -32,18 +32,11 @@ def is_silent(snd_data, noiseGateThreshold, isRecording):
 def write_auto(savePostfix):
     filename = "file"+'{0:%Y-%m-%d_%H-%M-%S}'.format(datetime.datetime.now()) + savePostfix + ".mp3"
 
-    nix,ext=os.path.splitext(filename)
-    if ext=='.wav':
-        waveFile = wave.open(filename, 'wb')
-        waveFile.setnchannels(CHANNELS)
-        waveFile.setsampwidth(audio.get_sample_size(FORMAT))
-        waveFile.setframerate(RATE)
-        waveFile.writeframes(b''.join(frames))
-        waveFile.close()
+    datastream = b''.join(frames)
 
-    if ext=='.mp3':
-        segment=AudioSegment(b''.join(frames), sample_width=audio.get_sample_size(FORMAT), channels=CHANNELS, frame_rate=RATE)
-        segment.export(filename, format='mp3', bitrate='128')
+    segment=AudioSegment(datastream, sample_width=audio.get_sample_size(FORMAT), channels=CHANNELS, frame_rate=RATE)
+    segment = effects.normalize(segment)
+    segment.export(filename, format='mp3', bitrate='128')
     frames.clear()
 
 
@@ -118,7 +111,7 @@ while 1:
         recordStarted=True
 
     if(recordStarted):
-        frames.append(3*np.array(snd_data))
+        frames.append(np.array(snd_data))
         if(time.time()-lastNoise>3):
             print("\nStop recording")
             recordStarted=False
