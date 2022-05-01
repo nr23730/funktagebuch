@@ -4,9 +4,10 @@ import numpy as np
 import sys
 from sys import byteorder
 from array import array
+from pydub import AudioSegment
 import time
+import os
 import datetime
-#import speech_recognition as sr
 
 def is_silent(snd_data, noiseGateThreshold, isRecording):
     "Returns 'True' if below the 'silent' threshold"
@@ -29,25 +30,22 @@ def is_silent(snd_data, noiseGateThreshold, isRecording):
     return isSilent
 
 def write_auto(savePostfix):
-    filename = "file"+'{0:%Y-%m-%d_%H-%M-%S}'.format(datetime.datetime.now()) + savePostfix + ".wav"
-    waveFile = wave.open(filename, 'wb')
-    waveFile.setnchannels(CHANNELS)
-    waveFile.setsampwidth(audio.get_sample_size(FORMAT))
-    waveFile.setframerate(RATE)
-    waveFile.writeframes(b''.join(frames))
-    waveFile.close()
+    filename = "file"+'{0:%Y-%m-%d_%H-%M-%S}'.format(datetime.datetime.now()) + savePostfix + ".mp3"
+
+    nix,ext=os.path.splitext(filename)
+    if ext=='.wav':
+        waveFile = wave.open(filename, 'wb')
+        waveFile.setnchannels(CHANNELS)
+        waveFile.setsampwidth(audio.get_sample_size(FORMAT))
+        waveFile.setframerate(RATE)
+        waveFile.writeframes(b''.join(frames))
+        waveFile.close()
+
+    if ext=='.mp3':
+        segment=AudioSegment(b''.join(frames), sample_width=audio.get_sample_size(FORMAT), channels=CHANNELS, frame_rate=RATE)
+        segment.export(filename, format='mp3', bitrate='128')
     frames.clear()
 
-    # r = sr.Recognizer()
-    #
-    # audiofile = sr.AudioFile(filename)
-    # with audiofile as source:
-    #     myAudio = r.record(source)
-    # try:
-    #     s = r.recognize_sphinx(myAudio, language="de-DE")
-    #     print("Text: " + s)
-    # except Exception as e:
-    #     print("Exception: " + str(e))
 
 def makeNoiseCal(audioStream):
     samples = []
