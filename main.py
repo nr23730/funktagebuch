@@ -2,6 +2,7 @@ import pyaudio
 import wave
 import numpy as np
 import sys
+from threading import Thread
 from sys import byteorder
 from array import array
 from pydub import AudioSegment, effects
@@ -29,15 +30,15 @@ def is_silent(snd_data, noiseGateThreshold, isRecording):
     sys.stdout.flush()
     return isSilent
 
-def write_auto(savePostfix):
+def write_auto(audioframes, savePostfix):
     filename = "file"+'{0:%Y-%m-%d_%H-%M-%S}'.format(datetime.datetime.now()) + savePostfix + ".mp3"
 
-    datastream = b''.join(frames)
+    datastream = b''.join(audioframes)
 
     segment=AudioSegment(datastream, sample_width=audio.get_sample_size(FORMAT), channels=CHANNELS, frame_rate=RATE)
     segment = effects.normalize(segment)
     segment.export(filename, format='mp3', bitrate='128')
-    frames.clear()
+    audioframes.clear()
 
 
 def makeNoiseCal(audioStream):
@@ -115,7 +116,7 @@ while 1:
         if(time.time()-lastNoise>3):
             print("\nStop recording")
             recordStarted=False
-            write_auto(savePostfix)
+            Thread(target=write_auto, args=(frames, savePostfix)).start()
 
 
 print("finished recording")
