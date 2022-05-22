@@ -27,22 +27,20 @@ class AudioChanelRecorder:
         else:
             prefix="           "
 
-        self.StatusText = prefix+"SignalLevel: " + format(int(signallevel), '4d')+postfix
+        self.StatusText = self.postfix+" SignalLevel: " + format(int(signallevel), '4d')+postfix
         return isSilent
 
     StatusText="Not Started"
 
-    def write_auto(self, audioframes, savePostfix):
-        print("saving data")
+    def write_auto(self, datastream, savePostfix):
+        print(self.postfix+" saving data")
         filename = "file"+'{0:%Y-%m-%d_%H-%M-%S}'.format(datetime.datetime.now()) + savePostfix + ".mp3"
-
-        datastream = b''.join(audioframes)
 
         segment=AudioSegment(datastream, sample_width=self.audio.get_sample_size(self.FORMAT), channels=self.CHANNELS, frame_rate=self.RATE)
         segment = effects.normalize(segment)
         segment.export(filename, format='mp3', bitrate='128')
-        audioframes.clear()
-
+        
+        print(self.postfix+" saving data done")
 
     def makeNoiseCal(self, audioStream):
         samples = []
@@ -64,28 +62,31 @@ class AudioChanelRecorder:
 
         sigma=6
         threshold=np.average(samples)+sigma*np.std(samples)
-        print("Threshold: "+str(threshold))
+        print(self.postfix+" Threshold: "+str(threshold))
         return threshold
     FORMAT = pyaudio.paInt16
     CHANNELS = 1
     RATE = 44100
     CHUNK = 4096
     RECORD_SECONDS = 5
+    postfix=""
 
     audio = pyaudio.PyAudio()
 
     def Run(self, deviceIndex, savePostfix):
+        self.postfix=savePostfix
         # start Recording
         stream = self.audio.open(format=self.FORMAT, channels=self.CHANNELS,
                             rate=self.RATE, input=True,
                             frames_per_buffer=self.CHUNK, input_device_index=deviceIndex)
-        print("recording...")
+        print(self.postfix+" recording...")
         frames = []
 
         recordStarted=False
         lastNoise=time.time()
 
-        gateThreshold = self.makeNoiseCal(stream)
+        #gateThreshold = self.makeNoiseCal(stream)
+        gateThreshold = 750
 
         while 1:
             data=stream.read(self.CHUNK, exception_on_overflow = False)
@@ -98,16 +99,16 @@ class AudioChanelRecorder:
             if(silent==False):
                 lastNoise = time.time()
                 if(recordStarted==False):
-                    print("\nStart recording")
+                    print("\n"+self.postfix+" Start recording")
                 recordStarted=True
 
             if(recordStarted):
                 frames.append(np.array(snd_data))
                 if(time.time()-lastNoise>3):
-                    print("\nStop recording")
+                    print("\n"+self.postfix+" Stop recording")
                     recordStarted=False
-                    Thread(target=self.write_auto, args=(frames, savePostfix)).start()
-
+                    Thread(target=self.write_auto, args=(b''.join(frames), savePostfix)).start()
+                    frames.clear()
 
         print("finished recording")
 
@@ -120,8 +121,8 @@ def main():
     device1=AudioChanelRecorder()
     device2=AudioChanelRecorder()
 
-    Thread(target=device1.Run, args=(0,"in")).start()
-    #Thread(target=device2.Run, args=(1,"out")).start()
+    Thread(target=device1.Run, args=(1,"out")).start()
+    Thread(target=device2.Run, args=(2,"in")).start()
 
     while 1:
         time.sleep(0.2)
